@@ -154,14 +154,9 @@ Solution: Change port in dashboard_app.py or close other Flask applications
 Solution: YOLOv8 models auto-download on first run. Ensure internet connection is available.
 ```
 
-## License
-
-[Add your license here]
 
 ## Contact
 
-[Add contact information here]
+Email: mirzauzaif07@gmail.com
+Linkedin: https://www.linkedin.com/in/mirza-uzaif-baig-a78556289/
 
-## Contributors
-
-[Add contributors here]
