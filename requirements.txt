@@ -1,4 +1,7 @@
-mysql-connector-python>=8.0.0
-flask>=2.3.0
-opencv-python>=4.8.0
-numpy>=1.24.0
+flask
+mysql-connector-python
+ultralytics
+numpy
+Pillow
+Werkzeug
+Jinja2
