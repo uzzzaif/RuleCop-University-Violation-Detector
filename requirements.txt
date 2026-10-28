@@ -1,0 +1,8 @@
+flask
+mysql-connector-python
+ultralytics
+numpy
+Pillow
+Werkzeug
+Jinja2
+python-dotenv

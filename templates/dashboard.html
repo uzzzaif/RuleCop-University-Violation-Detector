@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Violation Detection Dashboard</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1>🎓 University Violation Detection Dashboard</h1>
+                <p>Real-time monitoring and management system</p>
+            </div>
+            <div class="header-right">
+                <div class="toggle-refresh">
+                    <span class="refresh-label">Auto-Refresh:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoRefreshToggle" checked onchange="toggleAutoRefresh()">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="refresh-status" id="refreshStatus">● ON</span>
+                </div>
+                <button onclick="refreshAll()">🔄 Refresh Now</button>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <h3>Total Violations</h3>
+                <div class="stat-value" id="total-violations">-</div>
+            </div>
+            <div class="stat-card uniform">
+                <h3>Uniform Violations</h3>
+                <div class="stat-value" id="uniform-violations">-</div>
+            </div>
+            <div class="stat-card loitering">
+                <h3>Loitering Incidents</h3>
+                <div class="stat-value" id="loitering-violations">-</div>
+            </div>
+            <div class="stat-card pending">
+                <h3>Pending Review</h3>
+                <div class="stat-value" id="pending-violations">-</div>
+            </div>
+        </div>
+        
+        <div class="violations-section">
+            <div class="section-header">
+                <h2>📋 Violations List</h2>
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Type</label>
+                        <select id="filter-type">
+                            <option value="">All Types</option>
+                            <option value="uniform">Uniform</option>
+                            <option value="loitering">Loitering</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="filter-status">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="reviewed">Reviewed</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>&nbsp;</label>
+                        <button onclick="loadViolations()">🔍 Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container" id="table-container">
+                <div class="loading">Loading violations...</div>
+            </div>
+            
+            <p class="last-updated" id="lastUpdated">Last updated: Never</p>
+        </div>
+
+        <p class="footer-info">University Violation Detection System v1.0 | Powered by YOLOv8 & Flask</p>
+    </div>
+    
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title">Violation Details</h2>
+            <img id="modal-image" class="modal-image">
+            <div id="modal-details" class="modal-details"></div>
+        </div>
+    </div>
+    
+    <script>
+        let autoRefreshInterval = null;
+        let autoRefreshEnabled = true;
+        
+        // Toggle auto-refresh
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = document.getElementById('autoRefreshToggle').checked;
+            const statusElement = document.getElementById('refreshStatus');
+            
+            if (autoRefreshEnabled) {
+                statusElement.textContent = '● ON';
+                statusElement.classList.remove('off');
+                startAutoRefresh();
+            } else {
+                statusElement.textContent = '● OFF';
+                statusElement.classList.add('off');
+                stopAutoRefresh();
+            }
+        }
+        
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(() => {
+                if (autoRefreshEnabled) {
+                    refreshAll();
+                }
+            }, 30000); // 30 seconds
+        }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+        
+        // Load statistics
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                document.getElementById('total-violations').textContent = data.total || 0;
+                document.getElementById('pending-violations').textContent = data.pending || 0;
+                
+                let uniformCount = 0, loiteringCount = 0;
+                data.by_type.forEach(item => {
+                    if (item.violation_type === 'uniform') uniformCount = item.count;
+                    if (item.violation_type === 'loitering') loiteringCount = item.count;
+                });
+                
+                document.getElementById('uniform-violations').textContent = uniformCount;
+                document.getElementById('loitering-violations').textContent = loiteringCount;
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+        
+        // Load violations table
+        async function loadViolations() {
+            try {
+                const type = document.getElementById('filter-type').value;
+                const status = document.getElementById('filter-status').value;
+                
+                let url = '/api/violations?limit=100';
+                if (type) url += `&type=${type}`;
+                if (status) url += `&status=${status}`;
+                
+                const response = await fetch(url);
+                const violations = await response.json();
+                
+                if (violations.length === 0) {
+                    document.getElementById('table-container').innerHTML = 
+                        '<div class="no-data">No violations found</div>';
+                    return;
+                }
+                
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Date & Time</th>
+                                <th>Confidence</th>
+                                <th>Person ID</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                violations.forEach(v => {
+                    const confidence = v.confidence ? (v.confidence * 100).toFixed(1) + '%' : 
+                                      (v.dwell_time ? v.dwell_time + 's' : 'N/A');
+                    
+                    html += `
+                        <tr>
+                            <td>
+                                ${v.image_path ? 
+                                    `<img src="/image/${v.image_path}" class="thumbnail" 
+                                          onclick="showImage('${v.image_path}', ${v.id})">` : 
+                                    '<span style="color: #999; font-size: 11px;">No image</span>'}
+                            </td>
+                            <td><strong>#${v.id}</strong></td>
+                            <td><span class="badge ${v.violation_type}">${v.violation_type}</span></td>
+                            <td style="font-size: 12px;">${new Date(v.timestamp).toLocaleString()}</td>
+                            <td><strong>${confidence}</strong></td>
+                            <td style="font-size: 11px; color: #666;">${v.person_id || 'N/A'}</td>
+                            <td><span class="badge ${v.status}">${v.status}</span></td>
+                            <td>
+                                <button class="action-btn btn-review" 
+                                        onclick="updateStatus(${v.id}, 'reviewed')">Review</button>
+                                <button class="action-btn btn-resolve" 
+                                        onclick="updateStatus(${v.id}, 'resolved')">Resolve</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                document.getElementById('table-container').innerHTML = html;
+                
+                // Update last updated time
+                updateLastUpdatedTime();
+                
+            } catch (error) {
+                console.error('Error loading violations:', error);
+                document.getElementById('table-container').innerHTML = 
+                    '<div class="no-data">Error loading violations</div>';
+            }
+        }
+        
+        function updateLastUpdatedTime() {
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent = 
+                `Last updated: ${now.toLocaleTimeString()}`;
+        }
+        
+        // Show image modal
+        function showImage(imagePath, violationId) {
+            document.getElementById('modal-image').src = `/image/${imagePath}`;
+            document.getElementById('modal-title').textContent = `Violation Details - ID #${violationId}`;
+            document.getElementById('imageModal').style.display = 'block';
+            
+            // Load violation details
+            fetch(`/api/violations?limit=100`)
+                .then(r => r.json())
+                .then(data => {
+                    const violation = data.find(v => v.id === violationId);
+                    if (violation) {
+                        document.getElementById('modal-details').innerHTML = `
+                            <p><strong>Violation ID:</strong> #${violation.id}</p>
+                            <p><strong>Type:</strong> ${violation.violation_type}</p>
+                            <p><strong>Date & Time:</strong> ${new Date(violation.timestamp).toLocaleString()}</p>
+                            <p><strong>Confidence:</strong> ${violation.confidence ? 
+                                (violation.confidence * 100).toFixed(1) + '%' : 'N/A'}</p>
+                            <p><strong>Status:</strong> <span class="badge ${violation.status}">${violation.status}</span></p>
+                            <p><strong>Person ID:</strong> ${violation.person_id || 'N/A'}</p>
+                            ${violation.dwell_time ? `<p><strong>Dwell Time:</strong> ${violation.dwell_time} seconds</p>` : ''}
+                            ${violation.notes ? `<p><strong>Notes:</strong> ${violation.notes}</p>` : ''}
+                        `;
+                    }
+                });
+        }
+        
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+        
+        // Update violation status
+        async function updateStatus(id, status) {
+            try {
+                await fetch(`/api/violations/${id}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status })
+                });
+                
+                loadViolations();
+                loadStats();
+                
+                // Show brief confirmation
+                const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+                alert(`✅ Violation #${id} marked as ${statusText}`);
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('❌ Failed to update status');
+            }
+        }
+        
+        // Refresh all data
+        function refreshAll() {
+            loadStats();
+            loadViolations();
+        }
+        
+        // Initialize dashboard
+        window.onload = function() {
+            refreshAll();
+            startAutoRefresh();
+        };
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('imageModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>
