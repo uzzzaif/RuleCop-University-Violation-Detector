@@ -10,15 +10,9 @@ from mysql.connector import Error
 from datetime import datetime, timedelta
 import os
 
-app = Flask(__name__)
+from settings import DB_CONFIG, FLASK_DEBUG, FLASK_HOST, FLASK_PORT
 
-# Database configuration
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'root@123',  # Change this
-    'database': 'university_violations'
-}
+app = Flask(__name__)
 
 def get_db_connection():
     """Get database connection"""
@@ -216,4 +210,4 @@ if __name__ == '__main__':
     print("\nPress Ctrl+C to stop")
     print("=" * 70 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=FLASK_DEBUG, host=FLASK_HOST, port=FLASK_PORT)

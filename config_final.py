@@ -1,19 +1,37 @@
+from settings import (
+    DB_CONFIG,
+    DISPLAY_WIDTH,
+    FRAME_SKIP,
+    LOITERING_ENABLED,
+    LOITERING_MOVEMENT_THRESHOLD,
+    LOITERING_TIME,
+    MIN_CONFIDENCE,
+    MODEL_PATH,
+    SAVE_SNAPSHOTS,
+    SNAPSHOT_DIR,
+    UNIFORM_RATIO_THRESHOLD,
+    USE_ML_MODEL,
+    YOLO_CONFIDENCE,
+    YOLO_MODEL,
+)
+
+
 class Config:
     # ============= DATABASE =============
-    DB_HOST = 'localhost'
-    DB_USER = 'root'
-    DB_PASSWORD = 'root@123'
-    DB_NAME = 'university_violations'
+    DB_HOST = DB_CONFIG['host']
+    DB_USER = DB_CONFIG['user']
+    DB_PASSWORD = DB_CONFIG['password']
+    DB_NAME = DB_CONFIG['database']
     SAVE_TO_DATABASE = True  # Set False to skip database
     
     # ============= DETECTION =============
     # YOLO person detection
-    YOLO_CONFIDENCE = 0.3  # Lower = detect more people (0.2-0.5)
-    YOLO_MODEL = 'yolov8n.pt'
+    YOLO_CONFIDENCE = YOLO_CONFIDENCE
+    YOLO_MODEL = YOLO_MODEL
     
     # Uniform detection method
-    USE_ML_MODEL = False  # True = use trained model, False = use HSV color
-    MODEL_PATH = 'models/uniform_model.pkl'
+    USE_ML_MODEL = USE_ML_MODEL
+    MODEL_PATH = MODEL_PATH
     
     # ============= HSV COLOR DETECTION =============
     # Use calibrate_colors.py to find these values!
@@ -22,19 +40,18 @@ class Config:
     UNIFORM_HSV_UPPER = (130, 255, 255)
     
     # How much of torso must be uniform color (0.0 to 1.0)
-    UNIFORM_RATIO_THRESHOLD = 0.25  # 25% of torso must be uniform color
+    UNIFORM_RATIO_THRESHOLD = UNIFORM_RATIO_THRESHOLD
     
     # Confidence threshold for reporting violations (0.0 to 1.0)
-    MIN_CONFIDENCE = 0.6  # Only report violations above this confidence
+    MIN_CONFIDENCE = MIN_CONFIDENCE
     
     # ============= LOITERING =============
-    LOITERING_ENABLED = True
-    LOITERING_TIME = 30  # seconds
-    LOITERING_MOVEMENT_THRESHOLD = 25  # pixels
+    LOITERING_ENABLED = LOITERING_ENABLED
+    LOITERING_TIME = LOITERING_TIME
+    LOITERING_MOVEMENT_THRESHOLD = LOITERING_MOVEMENT_THRESHOLD
     
     # ============= VIDEO/PERFORMANCE =============
-    FRAME_SKIP = 2  # Process every Nth frame (1=all frames, 2=every 2nd)
-    DISPLAY_WIDTH = 1280  # Display window width
-    SAVE_SNAPSHOTS = True
-    SNAPSHOT_DIR = 'violation_snapshots'
-
+    FRAME_SKIP = FRAME_SKIP
+    DISPLAY_WIDTH = DISPLAY_WIDTH
+    SAVE_SNAPSHOTS = SAVE_SNAPSHOTS
+    SNAPSHOT_DIR = SNAPSHOT_DIR

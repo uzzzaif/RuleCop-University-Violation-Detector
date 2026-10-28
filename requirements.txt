@@ -5,3 +5,4 @@ numpy
 Pillow
 Werkzeug
 Jinja2
+python-dotenv

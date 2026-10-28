@@ -1,162 +1,254 @@
 # RuleCop - University Violation Detection System
 
-A YOLOv8-based computer vision system that detects uniform violations and loitering in university campuses using real-time video analysis.
+RuleCop uses YOLOv8 and OpenCV to detect uniform violations and loitering from a webcam. It stores violation records in MySQL and provides a Flask dashboard for reviewing them.
 
 ## Features
 
-- **Real-time Detection**: YOLOv8 person detection with GPU acceleration
-- **Uniform Violations**: HSV color-based or ML model detection for uniform compliance
-- **Loitering Detection**: Identifies people staying in restricted areas beyond threshold
-- **Web Dashboard**: Flask-based web interface for viewing violations
-- **Database Integration**: MySQL for storing violation records and snapshots
-- **Configurable Settings**: Easy-to-use configuration file for tuning detection parameters
+- Real-time YOLOv8 person detection
+- HSV-based uniform compliance detection
+- Loitering detection
+- MySQL violation and session records
+- Flask dashboard
+- Configurable settings through `.env`
+- Optional GPU acceleration with CUDA
 
-## Project Structure
+## Requirements
 
+- Windows 10/11
+- Python 3.8 or newer
+- MySQL Server 8.x
+- A webcam
+- Git (optional)
+
+## Install on a new Windows laptop
+
+### 1. Install MySQL Server
+
+Download **MySQL Community Server** from:
+
+<https://dev.mysql.com/downloads/mysql/>
+
+During the MySQL Installer setup:
+
+1. Choose **Developer Default** or **Server only**.
+2. Keep the default TCP port `3306`.
+3. Choose **Use Strong Password Encryption**.
+4. Set and save the MySQL root password.
+5. Install MySQL as a Windows service and enable it to start automatically.
+
+MySQL Workbench is optional but useful for running SQL and inspecting tables:
+
+<https://dev.mysql.com/downloads/workbench/>
+
+To check the MySQL service in PowerShell:
+
+```powershell
+Get-Service MySQL*
 ```
-university_project/
-├── dashboard_app.py          # Flask web dashboard
-├── final_detector_db.py      # Main YOLOv8 detector with DB integration
-├── db_setup.py               # Database initialization script
-├── config_final.py           # Configuration settings
-├── calibrate_colors.py       # Color calibration utility
-├── templates/
-│   └── dashboard.html        # Web interface
-├── static/
-│   └── style.css             # Dashboard styling
-├── yolov8n.pt               # Pre-trained YOLOv8 model
-└── violation_snapshots/      # Output violation images
+
+If it is stopped, start it from an elevated PowerShell window:
+
+```powershell
+Start-Service MySQL80
 ```
 
-## Installation
+The service may have a different name on your computer. Use the name shown by `Get-Service MySQL*`.
 
-### Prerequisites
-- Python 3.8+
-- MySQL Server
-- Git
+### 2. Get the project
 
-### Quick Start
-
-1. **Clone the repository**
-```bash
+```powershell
 git clone <repository-url>
-cd university_project
+cd "RULE COP"
 ```
 
-2. **Create and activate virtual environment**
-```bash
+If you received the project as a folder, open PowerShell in that folder instead.
+
+### 3. Create and activate a Python environment
+
+```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1  # Windows PowerShell
-source .venv/bin/activate      # Linux/Mac
-```
-
-3. **Install dependencies**
-```bash
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-4. **Configure database**
-Edit `config_final.py` with your MySQL credentials:
-```python
-DB_HOST = 'localhost'
-DB_USER = 'your_mysql_user'
-DB_PASSWORD = 'your_mysql_password'
-DB_NAME = 'university_violations'
+### 4. Create a dedicated MySQL application user
+
+Using MySQL Workbench, open a SQL tab and run the following. Replace the password with a strong password of your choice:
+
+```sql
+CREATE DATABASE IF NOT EXISTS university_violations;
+
+CREATE USER IF NOT EXISTS 'rulecop'@'localhost'
+IDENTIFIED BY 'replace_with_a_strong_password';
+
+GRANT ALL PRIVILEGES ON university_violations.* TO 'rulecop'@'localhost';
+FLUSH PRIVILEGES;
 ```
 
-5. **Initialize database**
-```bash
+You can run the same SQL from MySQL Shell after connecting as root:
+
+```powershell
+mysql -u root -p
+```
+
+Do not use the root account in the application. The dedicated account limits database access to RuleCop's database.
+
+### 5. Configure `.env`
+
+Copy the safe template:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Set `DB_PASSWORD` to the password used when creating the `rulecop` user:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=rulecop
+DB_PASSWORD=replace_with_a_strong_password
+DB_NAME=university_violations
+```
+
+Never commit `.env`. It is ignored by `.gitignore`. Keep `.env.example` in the project as the portable configuration template.
+
+### 6. Create the application tables
+
+With MySQL running and the virtual environment activated:
+
+```powershell
 python db_setup.py
 ```
 
-## Usage
+This selects the configured database and creates the `violations` and `detection_sessions` tables. The command can be run again safely.
 
-### Run Detection Only (No Dashboard)
-```bash
-python final_detector_db.py
-```
+### 7. Start the dashboard and detector
 
-### Run Web Dashboard
-```bash
-python dashboard_app.py
-```
-Then open http://localhost:5000 in your browser.
+Open two PowerShell windows. Activate the environment in both.
 
-### Run Both
-Open two terminals:
-```bash
-# Terminal 1
-python final_detector_db.py
+Dashboard terminal:
 
-# Terminal 2
+```powershell
+cd "E:\Projects\RULE COP"
+.\.venv\Scripts\Activate.ps1
 python dashboard_app.py
 ```
 
-### Calibrate Uniform Colors
-```bash
+Open <http://localhost:5000>.
+
+Detector terminal:
+
+```powershell
+cd "E:\Projects\RULE COP"
+.\.venv\Scripts\Activate.ps1
+python final_detector_db.py
+```
+
+Press `Q` in the detector window to stop detection.
+
+## Optional: calibrate uniform colors
+
+Run:
+
+```powershell
 python calibrate_colors.py
 ```
-This helps find the correct HSV color range for your uniform.
+
+Position a person wearing the correct uniform in front of the webcam. Adjust the sliders until the uniform is highlighted, press `Q`, and copy the displayed HSV values into `config_final.py`.
 
 ## Configuration
 
-Edit `config_final.py` to customize:
+The main settings are in `.env`:
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `YOLO_CONFIDENCE` | float | 0.3 | Person detection confidence (0.0-1.0) |
-| `UNIFORM_HSV_LOWER` | tuple | (90, 50, 80) | Lower HSV bounds for uniform color |
-| `UNIFORM_HSV_UPPER` | tuple | (130, 255, 255) | Upper HSV bounds for uniform color |
-| `UNIFORM_RATIO_THRESHOLD` | float | 0.25 | Percentage of torso that must match uniform color |
-| `MIN_CONFIDENCE` | float | 0.6 | Violation confidence threshold |
-| `LOITERING_TIME` | int | 30 | Seconds before flagging loitering |
-| `FRAME_SKIP` | int | 2 | Process every Nth frame for performance |
-| `SAVE_SNAPSHOTS` | bool | True | Save violation snapshots to disk |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DB_HOST` | `localhost` | MySQL host |
+| `DB_PORT` | `3306` | MySQL port |
+| `DB_USER` | `rulecop` | MySQL application user |
+| `DB_PASSWORD` | — | MySQL application password |
+| `DB_NAME` | `university_violations` | Database name |
+| `CAMERA_INDEX` | `0` | Webcam index; try `1` for another camera |
+| `FLASK_HOST` | `127.0.0.1` | Dashboard bind address |
+| `FLASK_PORT` | `5000` | Dashboard port |
+| `FLASK_DEBUG` | `false` | Flask debug mode |
+| `YOLO_CONFIDENCE` | `0.3` | Person detection confidence |
+| `LOITERING_TIME` | `30` | Seconds before loitering is reported |
+| `FRAME_SKIP` | `5` | Process every Nth frame |
+| `SAVE_SNAPSHOTS` | `true` | Save violation images |
 
-## Database Schema
+Detection HSV values remain in `config_final.py` because they are normally tuned interactively. The database, dashboard, camera, model, and performance settings are loaded centrally from `.env`.
 
-The system uses MySQL with the following main tables:
-- `violations` - Recorded violation events
-- `sessions` - Detection session logs
-- `snapshots` - Associated violation images
+## Project structure
 
-Run `db_setup.py` to create all required tables.
+```text
+RULE COP/
+├── dashboard_app.py       # Flask web dashboard
+├── final_detector_db.py   # YOLOv8 detector and database integration
+├── db_setup.py            # Database and table initialization
+├── settings.py            # Shared .env loader and typed settings
+├── config_final.py        # Detector configuration
+├── calibrate_colors.py    # HSV calibration utility
+├── .env.example           # Safe configuration template
+├── requirements.txt
+├── templates/
+├── static/
+└── yolov8n.pt             # YOLOv8 model
+```
 
-## API Endpoints
+## API endpoints
 
-### Dashboard
-- `GET /` - Main dashboard page
+- `GET /` - Dashboard
 - `GET /api/stats` - Violation statistics
-- `GET /api/violations` - List all violations
-- `GET /api/snapshots/<id>` - Retrieve violation snapshot
-
-## Performance Tips
-
-1. **Adjust FRAME_SKIP**: Increase to process fewer frames (faster but less accurate)
-2. **Adjust YOLO_CONFIDENCE**: Lower detects more people (slower), higher detects fewer (faster)
-3. **Reduce DISPLAY_WIDTH**: Smaller display improves rendering speed
-4. **Use GPU**: Ensure CUDA is installed for GPU acceleration with YOLOv8
+- `GET /api/violations` - Violation list
+- `GET /api/timeline` - Violation timeline
+- `POST /api/violations/<id>/update` - Update a violation
+- `GET /image/<filename>` - Retrieve a snapshot
 
 ## Troubleshooting
 
-### Database Connection Error
-```
-Solution: Ensure MySQL is running and credentials in config_final.py are correct
-```
+### `Access denied for user 'rulecop'`
 
-### "Address already in use" on port 5000
-```
-Solution: Change port in dashboard_app.py or close other Flask applications
+Verify `DB_USER` and `DB_PASSWORD` in `.env`. Then confirm the user exists and has privileges:
+
+```sql
+SHOW GRANTS FOR 'rulecop'@'localhost';
 ```
 
-### Model Download Failed
+### Cannot connect to MySQL
+
+Check that the MySQL service is running, that `DB_HOST` and `DB_PORT` are correct, and that Windows Firewall is not blocking the local service.
+
+### `python-dotenv` or another module is missing
+
+Activate the virtual environment and reinstall dependencies:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
-Solution: YOLOv8 models auto-download on first run. Ensure internet connection is available.
+
+### Webcam cannot be opened
+
+Close other applications using the camera. Then set `CAMERA_INDEX=1` or another available index in `.env`.
+
+### Port 5000 is already in use
+
+Set a different value in `.env`:
+
+```env
+FLASK_PORT=5001
 ```
 
+Then open <http://localhost:5001>.
 
-## Contact
+### Model download fails
 
-Email: mirzauzaif07@gmail.com
-Linkedin: https://www.linkedin.com/in/mirza-uzaif-baig-a78556289/
+Ensure the laptop has internet access. The bundled `yolov8n.pt` file is used by default; set `YOLO_MODEL` in `.env` only if you want to use another model.
 
+## License
+
+No license has been specified yet.

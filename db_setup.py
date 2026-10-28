@@ -1,45 +1,30 @@
-"""
-Database Setup Script
-Run this ONCE before using the dashboard: python db_setup.py
-"""
+"""Initialize the RuleCop MySQL database and tables."""
 
 import mysql.connector
 from mysql.connector import Error
 
-# Database configuration
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'root@123',  # Change this to your MySQL password
-    'database': 'university_violations'
-}
+from settings import DB_CONFIG
+
 
 def create_database():
-    """Create database and tables"""
-    
+    """Create the configured database and required tables."""
     try:
-        # Connect without database to create it
         connection = mysql.connector.connect(
-            host=DB_CONFIG['host'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password']
+            host=DB_CONFIG["host"],
+            user=DB_CONFIG["user"],
+            password=DB_CONFIG["password"],
+            port=DB_CONFIG["port"],
         )
-        
         cursor = connection.cursor()
-        
+
         print("=" * 70)
         print("SETTING UP DATABASE")
         print("=" * 70)
-        
-        # Create database
-        print("\n1. Creating database...")
-        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
-        print(f"   ✅ Database '{DB_CONFIG['database']}' created")
-        
-        # Use database
-        cursor.execute(f"USE {DB_CONFIG['database']}")
-        
-        # Create violations table
+
+        print(f"\n1. Selecting database '{DB_CONFIG['database']}'...")
+        cursor.execute(f"USE `{DB_CONFIG['database']}`")
+        print("   Database selected")
+
         print("\n2. Creating violations table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS violations (
@@ -58,9 +43,8 @@ def create_database():
                 INDEX idx_status (status)
             )
         """)
-        print("   ✅ Violations table created")
-        
-        # Create sessions table
+        print("   Violations table created")
+
         print("\n3. Creating detection sessions table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS detection_sessions (
@@ -73,30 +57,26 @@ def create_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        print("   ✅ Sessions table created")
-        
+        print("   Sessions table created")
+
         connection.commit()
         cursor.close()
         connection.close()
-        
+
         print("\n" + "=" * 70)
-        print("✅ DATABASE SETUP COMPLETE!")
+        print("DATABASE SETUP COMPLETE")
         print("=" * 70)
         print("\nNext steps:")
         print("  1. Run detection: python final_detector_db.py")
         print("  2. View dashboard: python dashboard_app.py")
         print("  3. Open browser: http://localhost:5000")
-        print("=" * 70)
-        
         return True
-        
-    except Error as e:
-        print(f"\n❌ Error: {e}")
-        print("\nMake sure:")
-        print("  1. MySQL is running (XAMPP/MySQL Workbench)")
-        print("  2. Username and password are correct in db_setup.py")
-        print("  3. You have permission to create databases")
+
+    except Error as error:
+        print(f"\nDatabase setup error: {error}")
+        print("Check that MySQL is running and .env credentials are correct.")
         return False
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     create_database()

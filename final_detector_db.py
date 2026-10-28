@@ -15,17 +15,13 @@ from mysql.connector import Error
 
 # Import config
 from config_final import Config
+from settings import CAMERA_INDEX, DB_CONFIG
 
 class Database:
     """Database manager for storing violations"""
     
     def __init__(self):
-        self.config = {
-            'host': 'localhost',
-            'user': 'root',
-            'password': 'root@123',  # Change to your password
-            'database': 'university_violations'
-        }
+        self.config = DB_CONFIG
         self.connection = None
         self.session_id = None
         self.connect()
@@ -62,8 +58,7 @@ class Database:
         except Error as e:
             print(f"⚠️  Could not start session: {e}")
     
-    def save_violation(self, violation_type, confidence, image_path, 
-                       person_id, dwell_time=None):
+    def save_violation(self, violation_type, confidence, image_path, person_id, dwell_time=None):
         """Save violation to database"""
         if not self.connection:
             return None
@@ -72,8 +67,7 @@ class Database:
             cursor = self.connection.cursor()
             cursor.execute("""
                 INSERT INTO violations 
-                (violation_type, timestamp, confidence, image_path, 
-                 person_id, dwell_time, status)
+                (violation_type, timestamp, confidence, image_path, person_id, dwell_time, status)
                 VALUES (%s, %s, %s, %s, %s, %s, 'pending')
             """, (
                 violation_type,
@@ -256,8 +250,7 @@ class LoiteringDetector:
             positions = np.array(track['positions'][-10:])
             movement = np.std(positions, axis=0).mean()
             
-            is_loitering = (dwell_time > Config.LOITERING_TIME and 
-                           movement < Config.LOITERING_MOVEMENT_THRESHOLD)
+            is_loitering = (dwell_time > Config.LOITERING_TIME and movement < Config.LOITERING_MOVEMENT_THRESHOLD)
             
             return is_loitering, dwell_time
         
@@ -346,8 +339,7 @@ class ViolationDetectionSystem:
                 if is_uniform_violation and uniform_conf >= Config.MIN_CONFIDENCE:
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                     label = f"UNIFORM VIOLATION: {uniform_conf:.2f}"
-                    cv2.putText(frame, label, (x1, y1-10), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                    cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
                     
                     snapshot_path = self.save_snapshot(frame, bbox, 'uniform', uniform_conf)
                     
@@ -365,17 +357,14 @@ class ViolationDetectionSystem:
                     })
                 else:
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(frame, "OK", (x1, y1-10), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    cv2.putText(frame, "OK", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                 
                 # Check loitering
                 if self.loitering_detector:
                     is_loitering, dwell_time = self.loitering_detector.update(person_id, bbox)
                     
                     if is_loitering:
-                        cv2.putText(frame, f"LOITERING: {dwell_time:.0f}s", 
-                                   (x1, y2+20), cv2.FONT_HERSHEY_SIMPLEX, 
-                                   0.5, (255, 0, 0), 2)
+                        cv2.putText(frame, f"LOITERING: {dwell_time:.0f}s", (x1, y2+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                         
                         # Save to database
                         violation_id = self.db.save_violation(
@@ -395,7 +384,7 @@ class ViolationDetectionSystem:
         return frame, violations
     
     def run(self):
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(CAMERA_INDEX)
         
         if not cap.isOpened():
             print("❌ Cannot open webcam!")
@@ -434,8 +423,7 @@ class ViolationDetectionSystem:
                             print(f"⚠️  LOITERING (ID: {v.get('db_id')}) Time: {v['dwell_time']:.0f}s")
                     
                     stats = f"Frames: {frame_count} | Violations: {violation_count}"
-                    cv2.putText(processed, stats, (10, 30), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                    cv2.putText(processed, stats, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
                     
                     cv2.imshow('Violation Detection - Press Q to Quit', processed)
                 
